@@ -18,58 +18,45 @@ public class MazeGenerator : MonoBehaviour
         }
         instance = this;
     }
-
-    public static int[,] GenerateMaze(int width, int height, Vector2Int? startPoint = null, Vector2Int? goalPoint = null)
+    public static int[,] GenerateMaze(MazeGenerationAlgorithm algorithm)
     {
-        if (width < 4 || height < 4)
+        AACO_Settings settings = AntColonyOptimization.Instance.Settings;
+        switch (algorithm)
         {
-            Debug.LogError("MazeGenerator: Maze dimensions must be at least 4x4");
-            return null;
-        }
-        int[,] maze = new int[width, height];
 
-        // Fill the maze with walls
+            case MazeGenerationAlgorithm.RecursiveBacktracking:
+                return RecursiveMaze(settings.MazeWidth, settings.MazeHeight, settings.StartPoint, settings.GoalPoint);
+            case MazeGenerationAlgorithm.PerlinNoise:
+                return PerlinMaze(settings.MazeWidth, settings.MazeHeight, settings.WallThreshold, settings.PerlinOffset);
+            default:
+                Debug.LogError("MazeGenerator: Invalid maze generation algorithm!");
+                return null;
+        }
+    }
+
+    public static int[,] PerlinMaze(int width, int height, float wallThreshHold = 0.5f, float offset = 0f)
+    {
+        // Create a new maze based on perlin noise
+        int[,] maze = new int[width, height];
         for (int x = 0; x < maze.GetLength(0); x++)
         {
             for (int y = 0; y < maze.GetLength(1); y++)
             {
-                maze[x, y] = 1;
+                maze[x, y] = (Mathf.PerlinNoise(x / 10f + offset, y / 10f + offset) > wallThreshHold) ? 1 : 0;
             }
         }
-
-        // Set the starting point to a random point if null
-        Vector2Int start;
-        if (startPoint == null)
-        {
-            do
-            {
-                start = new Vector2Int(Random.Range(0, maze.GetLength(0)), Random.Range(0, maze.GetLength(1)));
-            } while (goalPoint != null && start == goalPoint.Value);
-        }
-        else
-        {
-            start = startPoint.Value;
-        }
-        maze[start.x, start.y] = 0;
-
-        // Set the goal point
-        Vector2Int goal;
-        if (goalPoint == null)
-        {
-            do
-            {
-                goal = new Vector2Int(Random.Range(0, maze.GetLength(0)), Random.Range(0, maze.GetLength(1)));
-            } while (start == goal);
-        }
-        else
-        {
-            goal = goalPoint.Value;
-        }
-
         return maze;
     }
 
-    private static void GenerateMazeRecursiveBacktracking(int[,] maze, Vector2Int start, Vector2Int goal, Vector2Int currentCell)
+    public static int[,] RecursiveMaze(int width, int height, Vector2Int start, Vector2Int goal)
+    {
+        // Create a new maze based on perlin noise
+        int[,] maze = new int[width, height];
+        maze = GenerateMazeRecursiveBacktracking(maze, start, goal, start);
+        return maze;
+    }
+
+    private static int[,] GenerateMazeRecursiveBacktracking(int[,] maze, Vector2Int start, Vector2Int goal, Vector2Int currentCell)
     {
         // Set the current cell as visited
         maze[currentCell.x, currentCell.y] = 1;
@@ -87,6 +74,7 @@ public class MazeGenerator : MonoBehaviour
             // Recursively call the method with the chosen neighbor as the new current cell
             GenerateMazeRecursiveBacktracking(maze, start, goal, randomNeighbor);
         }
+        return maze;
     }
 
     private static List<Vector2Int> GetUnvisitedNeighbors(int[,] maze, Vector2Int cell)
@@ -129,4 +117,10 @@ public class MazeGenerator : MonoBehaviour
         // Remove the wall
         maze[cell1.x + direction.x, cell1.y + direction.y] = 0;
     }
+}
+
+public enum MazeGenerationAlgorithm
+{
+    RecursiveBacktracking,
+    PerlinNoise
 }
